@@ -1,0 +1,1565 @@
+static_diagram
+component 
+
+cluster MODEL
+component
+
+class ELECTION_CONSTANTS
+indexing
+	author: "Ólavur Kjølbro";
+feature
+	--seat counts
+	seats_total : INTEGER
+		ensure
+			Result = 179;
+		end
+	seats_faroe_islands : INTEGER
+		ensure
+			Result = 2;
+		end
+	seats_greenland : INTEGER
+		ensure
+			Result = 2;
+		end
+	seats_denmark : INTEGER
+		ensure
+			Result = 175;
+		end
+	constituency_seats : INTEGER
+		ensure
+			Result = 135;
+		end
+	additional_seats : INTEGER
+		ensure
+			Result = 40;
+		end
+
+	--map constants
+	no_of_provinces : INTEGER
+		ensure
+			Result = 3;
+		end
+	no_of_constituencies : INTEGER
+		ensure
+			Result = 10;
+		end
+	no_of_districts : INTEGER
+		ensure
+			Result = 92;
+		end
+
+	--division methods
+	dhondt : INTEGER
+		ensure
+			Result = 1;
+		end
+	sainte_lague : INTEGER
+		ensure
+			Result = 2;
+		end
+	danish_method : INTEGER
+		ensure
+			Result = 3;
+		end
+		
+	--list organizations
+	standing_by_district : INTEGER
+		ensure
+			Result = 1;
+		end
+	standing_in_parallel : INTEGER
+		ensure
+			Result = 2;
+		end
+
+	--preliminary vs. final
+	preliminary : INTEGER
+		ensure
+			Result = 1;
+		end
+	final : INTEGER
+		ensure
+			Result = 2;
+		end
+end --ELECTION_CONSTANTS
+
+class ELECTION_STATUS
+indexing
+	author: "Ólavur Kjølbro";
+feature
+	--states of the outer state machine
+	before_election : INTEGER
+		ensure
+			Result = 0;
+		end
+	initialized : INTEGER
+		ensure
+			Result = 1;
+		end
+	election_open : INTEGER
+		ensure
+			Result = 2;
+		end
+	election_closed : INTEGER
+		ensure
+			Result = 3;
+		end
+	preliminary_counting_completed : INTEGER
+		ensure
+			Result = 4;
+		end
+	preliminary_results_computed : INTEGER
+		ensure
+			Result = 5;
+		end
+	final_counting_completed : INTEGER
+		ensure
+			Result = 6;
+		end
+	final_results_computed : INTEGER
+		ensure
+			Result = 7;
+		end
+
+	--inner states in two-tier state machine
+	before_computing : INTEGER
+		ensure
+			Result = 0;
+		end
+	step_1_done : INTEGER
+		ensure
+			Result = 1;
+		end
+	step_1_resolved : INTEGER
+		ensure
+			Result = 2;
+		end
+	threshold_determined : INTEGER
+		ensure
+			Result = 3;
+		end
+	step_3_done : INTEGER
+		ensure
+			Result = 4;
+		end
+	step_3_resolved : INTEGER
+		ensure
+			Result = 5;
+		end
+	step_4_done : INTEGER
+		ensure
+			Result = 6;
+		end
+	step_4_resolved : INTEGER
+		ensure
+			Result = 7;
+		end
+	step_5_done : INTEGER
+		ensure
+			Result = 8;
+		end
+	step_5_resolved : INTEGER
+		ensure
+			Result = 9;
+		end
+	step_6_done : INTEGER
+		ensure
+			Result = 10;
+		end
+	step_6_resolved : INTEGER
+		ensure
+			Result = 11;
+		end
+	no_passing_parties : INTEGER
+		ensure
+			Result = 12;
+		end
+
+	--status of polling station
+	ps_not_open : INTEGER
+		ensure
+			Result = 0;
+		end
+	ps_open : INTEGER
+		ensure
+			Result = 1;
+		end
+	ps_closed : INTEGER
+		ensure
+			Result = 2;
+		end
+end --ELECTION_STATUS
+
+cluster DATA
+component
+
+class PARTY persistent
+indexing
+	author: "Ólavur Kjølbro";
+feature {NONE}
+	party_id : INTEGER
+	name, letter : STRING
+	list_organization : INTEGER
+feature
+	get_party_id : INTEGER
+	get_list_organization : INTEGER
+	get_name : STRING
+	get_letter : STRING
+	redefined to_string : STRING
+invariant
+	party_id > 0;
+	name /= Void;
+	letter /= Void;
+	list_organization = ELECTION_CONSTANTS.standing_by_district or list_organization = ELECTION_CONSTANTS.standing_in_parallel;
+end --PARTY
+
+class CANDIDATE persistent
+indexing
+	author: "Ólavur Kjølbro";
+feature {NONE}
+	candidate_id : INTEGER
+	party : PARTY --Void means independent
+	name, cpr, position, address : STRING
+feature
+	get_party : PARTY
+	get_name : STRING
+	get_candidate_id : INTEGER
+	get_cpr : STRING
+	get_position : STRING
+	get_address : STRING
+	redefined to_string : STRING
+invariant
+	candidate_id > 0;
+	name /= Void;
+	cpr /= Void;
+	position /= Void;
+	address /= Void;
+end --CANDIDATE
+
+class BALLOT persistent
+indexing
+	author: "Ólavur Kjølbro";
+feature {NONE}
+	ballot_id : INTEGER
+	ps : POLLING_STATION
+	journal : LIST[BALLOT_JOURNAL]
+	invalid_votes : INTEGER
+feature
+	get_ballot_id : INTEGER
+	get_ps : POLLING_STATION
+	get_journal : LIST[BALLOT_JOURNAL]
+	get_invalid_votes : INTEGER
+	set_invalid_votes
+		-> inv_votes : INTEGER
+		require
+			inv_votes >= 0;
+		ensure
+			invalid_votes = inv_votes;
+			delta invalid_votes;
+		end
+	redefined to_string : STRING
+invariant
+	ballot_id > 0;
+	ps /= Void;
+	journal /= Void;
+	invalid_votes >= 0;
+end
+
+class BALLOT_JOURNAL persistent
+indexing
+	author: "Ólavur Kjølbro";
+feature {NONE}
+	bj_id : INTEGER
+	party : PARTY
+	candidate : CANDIDATE
+	total_votes : INTEGER
+	party_votes : INTEGER
+	personal_votes : INTEGER
+feature
+	get_bj_id : INTEGER
+	get_party : PARTY
+	get_candidate : CANDIDATE
+	get_total_votes : INTEGER
+	get_personal_votes : INTEGER
+	get_party_votes : INTEGER
+	set_party_votes
+		-> v : INTEGER
+		require
+			v >= 0;
+		ensure
+			party_votes = v;
+			delta party_votes;
+		end
+	set_personal_votes
+		-> v : INTEGER
+		require
+			v >= 0;
+		ensure
+			personal_votes = v;
+			delta personal_votes;
+		end
+	redefined to_string : STRING
+invariant
+	bj_id > 0;
+	party /= Void xor candidate /= Void;
+	party_votes >= 0;
+	personal_votes >= 0;
+	total_votes = party_votes + personal_votes;
+	party /= Void -> personal_votes = 0;
+end
+
+cluster MAP
+component
+
+class PROVINCE persistent
+indexing
+	author: "Ólavur Kjølbro";
+feature {NONE}
+	province_id : integer
+	name : STRING
+	constituency_seats : INTEGER
+	additional_seats : INTEGER
+feature
+	get_province_id : INTEGER
+	get_name : STRING
+	get_constituency_seats : INTEGER
+	get_additional_seats : INTEGER
+	redefined to_string : STRING
+invariant
+	province_id > 0;
+	name /= Void;
+	constituency_seats >= 0;
+	constituency_seats <= ELECTION_CONSTANTS.constituency_seats;
+	additional_seats >= 0;
+	additional_seats <= ELECTION_CONSTANTS.additional_seats;
+end --PROVINCE
+
+class CONSTITUENCY persistent
+indexing
+	author: "Ólavur Kjølbro";
+feature {NONE}
+	constituency_id : INTEGER
+	name : STRING
+	province : PROVINCE
+	constituency_seats : INTEGER
+	bornholm : BOOLEAN
+feature
+	get_constituency_id : INTEGER
+	get_name : STRING
+	get_province : PROVINCE
+	get_constituency_seats : INTEGER
+	is_bornholm : BOOLEAN
+	redefined to_string : STRING
+invariant
+	constituency_id > 0;
+	name /= Void;
+	province /= Void;
+	constituency_seats >= 0;
+	constituency_seats <= province.get_constituency_seats;
+	bornholm = true -> constituency_seats >= 2; 
+end --CONSTITUENCY
+
+class DISTRICT persistent
+indexing
+	author: "Ólavur Kjølbro";
+feature {NONE}
+	district_id : INTEGER
+	name : STRING
+	constituency : CONSTITUENCY
+feature
+	get_district_id : INTEGER
+	get_name : STRING
+	get_constituency : CONSTITUENCY
+	redefined to_string : STRING
+invariant
+	district_id > 0;
+	name /= Void;
+	constituency /= Void;
+end --DISTRICT
+
+class POLLING_STATION persistent
+indexing
+	author: "Ólavur Kjølbro";
+feature {NONE}
+	ps_id : INTEGER
+	name : STRING
+	district : DISTRICT
+	no_of_reg_voters : INTEGER
+	open_state : INTEGER
+feature
+	get_ps_id : INTEGER
+	get_name : STRING
+	get_district : DISTRICT
+	get_no_of_reg_voters : INTEGER
+	get_open_status : INTEGER
+	open
+		require
+			open_state = ELECTION_STATUS.PS_NOT_OPEN;
+		ensure
+			open_state = ELECTION_STATUS.PS_OPEN;
+			delta open_state;
+		end
+	close
+		require
+			open_state = ELECTION_STATUS.PS_OPEN;
+		ensure
+			open_state = ELECTION_STATUS.PS_CLOSED;
+			delta open_state;
+		end
+	redefined to_string : STRING
+invariant
+	ps_id > 0;
+	name /= Void;
+	district /= Void;
+	no_of_reg_voters >= 0;
+	open_state = ELECTION_STATUS.PS_NOT_OPEN or open_state = ELECTION_STATUS.PS_OPEN or open_state = ELECTION_STATUS.PS_CLOSED; 
+end --POLLING_STATION
+
+end --component MAP
+
+cluster COMPUTATION
+component
+
+class DIV
+indexing
+	author: "Ólavur Kjølbro";
+	created: "20. January 2011";
+feature {NONE}
+	pres : PARTY_RESULT
+	cres : CANDIDATE_RESULT
+	quotient : NUMERIC
+	ranking : INTEGER
+feature
+	get_party_result : PARTY_RESULT
+	get_candidate_result : CANDIDATE_RESULT
+	get_quotient : VALUE
+	get_ranking : INTEGER
+	set_ranking
+		-> rank : INTEGER
+		require
+			rank >= 0;
+		ensure
+			ranking = rank;
+			delta {ranking};
+		end
+	redefined to_string : STRING
+invariant
+	pres /= Void xor cres /= Void;
+	quotient >= 0;
+	ranking >= 0;
+end --DIV
+
+class PARTY_RESULT
+feature {NONE}
+	party : PARTY
+	threshold_passed : BOOLEAN
+	total_votes : INTEGER
+	total_seats : INTEGER
+	constituency_seats : INTEGER
+	additional_seats : INTEGER
+	no_of_elected : INTEGER
+	draw : BOOLEAN
+	candidate_results : LIST[CANDIDATE_RESULT]
+	method : INTEGER
+	divs : LIST[DIV]
+feature
+	get_party : PARTY
+	get_candidate_results : LIST[CANDIDATE_RESULT]
+	get_total_votes : INTEGER
+	get_total_seats : INTEGER
+	get_constituency_seats : INTEGER
+	get_additional_seats : INTEGER
+	get_additional_seats_taken : INTEGER
+	get_no_of_elected : INTEGER
+	is_draw : BOOLEAN
+	is_resolved : BOOLEAN
+	get_divs : LIST[DIV]
+	get_method : INTEGER
+	set_draw
+		-> d : BOOLEAN
+		ensure
+			draw = d;
+			delta draw;
+		end
+	is_threshold_passed : BOOLEAN
+	set_no_of_elected
+		-> no : INTEGER
+		require
+			no >= 0;
+		ensure
+			no_of_elected = no;
+			delta no_of_elected;
+		end
+	set_candidate_results
+		-> pers_v : LIST[CANDIDATE_RESULT]
+	set_method
+		-> m : INTEGER
+		require
+			m = ELECTION_CONSTANTS.dhondt or m = ELECTION_CONSTANTS.sainte_lague or m = ELECTION_CONSTANTS.danish_method;
+		ensure
+			method = m;
+			delta method;
+		end
+	set_threshold_passed
+		-> passed_value : BOOLEAN
+		ensure
+			threshold_passed = passed_value;
+			delta threshold_passed;
+		end
+	set_total_votes
+		-> v : INTEGER
+		require
+			v >= 0;
+		ensure
+			total_votes = v;
+			delta total_votes;
+		end
+	set_additional_seats_taken
+		-> seats_taken : INTEGER
+		require
+			seats_taken >= 0;
+		ensure
+			additional_seats_taken = seats_taken;
+			delta {additional_seats_taken};
+		end
+	set_total_seats
+		-> seats_total : INTEGER
+		require
+			seats_total >= 0;
+			seats_total >= constituency_seats;
+		ensure
+			total_seats = seats_total;
+			additional_seats = total_seats - constituency_seats;
+			delta {additional_seats, total_seats};
+		end
+	set_constituency_seats
+		-> constit_seats : INTEGER
+		require
+			constit_seats >= 0;
+		ensure
+			constituency_seats = constit_seats;
+			delta {constituency_seats, total_seats};
+		end
+	set_additional_seats
+		-> addit_seats : INTEGER
+		require
+			addit_seats >= constituency_seats * (-1);
+		ensure
+			additional_seats = addit_seats;
+			delta {additional_seats, total_seats};
+		end
+	add_one_to_div_list
+		ensure
+			divs.count = (old divs.count) + 1;
+			delta divs;
+		end
+	create_init_divs
+		ensure
+			divs.count = constituency_seats + 1;
+			delta divs;
+		end
+	redefined to_string : STRING
+invariant
+	party /= Void;
+	total_votes >= 0;
+	total_seats >= 0;
+	total_seats = constituency_seats + additional_seats;
+	constituency_seats >= 0;
+	no_of_elected >= 0;
+	candidate_results /= Void;
+	method = ELECTION_CONSTANTS.dhondt or method = ELECTION_CONSTANTS.sainte_lague or method = ELECTION_CONSTANTS.danish_method;
+	divs /= Void; 
+end --PARTY_RESULT
+
+class CANDIDATE_RESULT
+indexing
+	author: "Ólavur Kjølbro";
+feature {NONE}
+	candidate : Candidate
+	total_votes : INTEGER
+	party_votes : INTEGER
+	personal_votes : INTEGER
+	elected : BOOLEAN
+feature
+	get_candidate : CANDIDATE
+	get_party_votes : INTEGER
+	get_personal_votes : INTEGER
+	get_total_votes : INTEGER
+	is_elected : BOOLEAN
+	is_draw : BOOLEAN
+	set_elected
+		-> e : BOOLEAN
+		ensure
+			elected = e;
+			delta elected;
+		end
+	set_draw
+		-> d : BOOLEAN
+		ensure
+			draw = d;
+			delta draw;
+		end
+	set_party_votes
+		-> p_party_votes : INTEGER
+		require
+			p_party_votes >= 0;
+		ensure
+			party_votes = p_party_votes;
+			delta {party_votes, total_votes};
+		end
+	set_personal_votes
+		-> p_pers_votes : INTEGER
+		require
+			p_pers_votes >= 0;
+		ensure
+			personal_votes = p_pers_votes; 
+			delta {personal_votes, total_votes};
+		end
+	redefined to_string : STRING
+invariant 
+	candidate /= Void;
+	party_votes >= 0;
+	personal_votes >= 0;
+	total_votes = personal_votes + party_votes;
+end --CANDIDATE_RESULT
+
+class CONSTITUENCY_RESULT
+indexing
+	author: "Ólavur Kjølbro";
+	created: "20. January 2011";
+feature {NONE}
+	constituency : CONSTITUENCY
+	--votes_party : LIST[PARTY_RESULT]
+	party_results : LIST[PARTY_RESULT]
+	independent_candidates : LIST[CANDIDATE_RESULT]
+	electable_independent_candidates : INTEGER
+	seats_taken : INTEGER
+	invalid_votes : INTEGER
+feature
+	get_constituency : CONSTITUENCY
+	--get_votes_party : LIST[PARTY_RESULT]
+	get_party_result : LIST[PARTY_RESULT]
+	get_independent_candidates : LIST[CANDIDATE_RESULT]
+	get_seats_taken : INTEGER
+	get_invalid_votes : INTEGER
+	get_electable_independent_candidates : INTEGER
+	set_electable_indpendent_candidates
+		-> counter : INTEGER
+		require
+			counter >= 0;
+		ensure
+			electable_independent_candidates = counter;
+		end
+	set_invalid_votes
+		-> inv_votes : INTEGER
+	set_seats_taken
+		-> seats : INTEGER
+		require
+			seats >= 0;
+		ensure
+			seats_taken = seats;
+			delta seats_taken;
+		end
+--	set_votes_party
+--		-> votes_p : LIST[PARTY_RESULT]
+	set_party_result
+		-> party_res : LIST[PARTY_RESULT]
+	set_independent_candidates
+		-> LIST[CANDIDATE_RESULT]
+	create_init_divisor_list
+		ensure
+			for_all pv member_of party_results it_holds (pv.divs.count > 0);
+			delta party_results;
+		end
+	redefined to_string : STRING
+invariant
+	constituency /= Void;
+	electable_independent_candidates >= 0;
+	party_results /= Void;
+	independent_candidates /= Void;
+	seats_taken >= 0;
+end --CONSTITUENCY_RESULT
+
+class PROVINCE_RESULT
+indexing
+	author: "Ólavur Kjølbro";
+feature {NONE}
+	province : PROVINCE
+	party_results : LIST[PARTY_RESULT]
+	seats_taken : INTEGER
+	valid_votes : INTEGER
+feature
+	get_province : PROVINCE
+	get_party_result : LIST[PARTY_RESULT]
+	get_additional_seats_taken : INTEGER
+	get_valid_votes : INTEGER
+	set_party_result
+		-> party_res : LIST[PARTY_RESULT]
+		require
+			party_res /= Void;
+		ensure
+			party_results = party_res;
+			delta party_results;
+		end
+	set_valid_votes
+		-> votes : INTEGER
+		require
+			votes >= 0;
+		ensure
+			valid_votes = votes;
+			delta valid_votes;
+		end
+	set_additional_seats_taken
+		-> seats : INTEGER
+		require
+			seats >= 0;
+		ensure
+			seats_taken = seats;
+			delta seats_taken;
+		end
+	redefined to_string : STRING
+invariant
+	province /= Void;
+	party_results /= Void;
+	seats_taken >= 0;
+	valid_votes >= 0;
+end --PROVINCE_RESULT
+
+class STEP_FOUR_DRAW
+indexing
+	author: "Ólavur Kjølbro";
+feature {NONE}
+	ranking : INTEGER
+	province_results : LIST[PROVINCE_RESULT]
+	party_results : LIST[PARTY_RESULT]
+feature
+	get_province_results : LIST[PROVINCE_RESULT]
+	get_party_results : LIST[PARTY_RESULT]
+	get_ranking : INTEGER
+	redefined to_string : STRING
+invariant
+	ranking > 0;
+	ranking <= ELECTION_CONSTANTS.additional_seats;
+	province_results /= Void;
+	party_results /= Void;
+end --STEP_FOUR_DRAW
+
+end --COMPUTATION
+
+cluster GATEWAYS
+component
+
+cluster DATABASE
+component
+
+deferred class DB_INTERFACE interfaced
+indexing
+	author: "Ólavur Kjølbro";
+feature
+	--deferred get_polling_stations : LIST[POLLING_STATION]
+	deferred get_ballot : BALLOT
+		-> ps : POLLING_STATION
+	deferred get_constituency_results : LIST[CONSTITUENCY_RESULT]
+		-> temp_final : INTEGER
+	deferred get_national_results : LIST[PARTY_RESULT]
+		-> temp_final : INTEGER
+	deferred get_province_results : LIST[PROVINCE_RESULT]
+		-> temp_final : INTEGER
+	deferred add_candidates_to_constituency_results
+		-> const_results : LIST[CONSTITUENCY_RESULT]
+	deferred count_total_valid_votes : INTEGER
+		-> temp_final : INTEGER
+		-> pid : INTEGER
+	deferred count_total_invalid_votes : INTEGER
+		-> temp_final : INTEGER
+		-> pid : INTEGER
+	deferred check_counting : BOOLEAN
+		-> temp_final : INTEGER
+	deferred are_all_closed : BOOLEAN
+	deferred get_open_status : INTEGER
+		-> ps : POLLING_STATION
+	deferred get_polling_station : POLLING_STATION
+		-> ps_id : INTEGER
+	deferred open_polling_station
+		-> ps : POLLING_STATION
+	deferred close_polling_station
+		-> ps : POLLING_STATION
+	deferred register_result
+		-> ballot : BALLOT
+		-> temp_final : INTEGER
+end --DATABASE_INTERFACE
+
+effective class DATABASE_GATEWAY
+indexing
+	author: "Ólavur Kjølbro";
+inherit DB_INTERFACE
+feature {NONE}
+	instance : DATABASE_GATEWAY
+	local : CONNECTION
+feature
+	get_instance : DATABASE_GATEWAY
+		-> db_url : STRING
+		-> jdbc_driver : STRING
+		require
+			db_url /= Void;
+			jdbc_driver /= Void;
+		ensure
+			instance /= Void;
+			local /= Void;
+			delta {instance,local};
+		end
+	redefined get_polling_station : POLLING_STATION
+		-> ps_id : INTEGER
+		require
+			ps_id >= 0;
+		end
+	redefined get_ballot : BALLOT
+		-> ps : POLLING_STATION
+		require
+			ps /= Void;
+		end
+	redefined get_constituency_results : LIST[CONSTITUENCY_RESULT]
+		-> temp_final : INTEGER
+	redefined get_national_results : LIST[PARTY_RESULT]
+		-> temp_final : INTEGER
+	redefined get_province_results : LIST[PROVINCE_RESULT]
+		-> temp_final : INTEGER
+	redefined add_candidates_to_constituency_results
+		-> const_results : LIST[CONSTITUENCY_RESULT]
+	redefined check_counting : BOOLEAN
+		-> temp_final : INTEGER
+	redefined are_all_closed : BOOLEAN
+	redefined open_polling_station
+		-> ps : POLLING_STATION
+	redefined close_polling_station
+		-> ps : POLLING_STATION
+	reset_polling_stations
+	redefined get_open_status : INTEGER
+		-> ps : POLLING_STATION
+	redefined register_result
+		-> ballot : BALLOT
+		-> temp_final : INTEGER
+		require
+			ballot /= Void;
+		end
+	redefined count_total_valid_votes : INTEGER
+		-> temp_final : INTEGER
+		-> pid : INTEGER
+	redefined count_total_invalid_votes : INTEGER
+		-> temp_final : INTEGER
+		-> pid : INTEGER
+	clear_result
+		-> ps : POLLING_STATION
+		-> temp_final : INTEGER
+		require
+			ps /= Void;
+		end
+	clear_results
+		-> temp_final : INTEGER
+	is_result_registered : BOOLEAN
+		-> ps : POLLING_STATION
+		-> temp_final : INTEGER
+		require
+			ps /= Void;
+		end
+invariant
+	local /= Void;
+end
+
+end --DATABASE
+
+end --GATEWAYS
+
+end --component cluster DATA
+
+cluster PROCESS
+component
+
+deferred class GUI_INTERFACE interfaced
+indexing
+	author: "Ólavur Kjølbro";
+feature
+	deferred initialize
+	deferred open_election
+	deferred try_close_election
+	deferred check_preliminary_counting
+	deferred compute_step_one_preliminary 
+	deferred resolve_step_one_preliminary
+		-> pres : PARTY_RESULT 
+		-> cres : CANDIDATE_RESULT 
+		-> cr : CONSTITUENCY_RESULT
+	deferred compute_step_two_preliminary 
+	deferred compute_step_three_preliminary 
+	deferred resolve_step_three_preliminary
+		-> pr : PARTY_RESULT 
+	deferred compute_step_four_preliminary 
+	deferred get_step_four_draw_preliminary : STEP_FOUR_DRAW
+	deferred resolve_step_four_preliminary
+		-> ranking : INTEGER
+		-> pr : PROVINCE_RESULT
+		-> pres : PARTY_RESULT 
+	deferred compute_step_five_preliminary 
+	deferred resolve_step_five_preliminary
+		-> ranking : INTEGER
+		-> cr : CONSTITUENCY_RESULT
+		-> vp : PARTY_RESULT 
+	deferred check_final_counting
+	deferred compute_step_one_final 
+	deferred resolve_step_one_final
+		-> pres : PARTY_RESULT 
+		-> cres : CANDIDATE_RESULT 
+		-> cr : CONSTITUENCY_RESULT
+	deferred compute_step_two_final 
+	deferred compute_step_three_final 
+	deferred resolve_step_three_final
+		-> pr : PARTY_RESULT 
+	deferred compute_step_four_final 
+	deferred get_step_four_draw_final : STEP_FOUR_DRAW
+	deferred resolve_step_four_final
+		-> ranking : INTEGER
+		-> pr : PROVINCE_RESULT
+		-> vp : PARTY_RESULT 
+	deferred compute_step_five_final 
+	deferred resolve_step_five_final
+		-> ranking : INTEGER
+		-> cr : CONSTITUENCY_RESULT
+		-> vp : PARTY_RESULT 
+	deferred compute_step_six_final 
+	deferred resolve_step_six_final
+		-> cr : CONSTITUENCY_RESULT
+		-> pr : PARTY_RESULT
+		-> vp : CANDIDATE_RESULT 
+	deferred get_preliminary_result : ELECTION_RESULT
+	deferred get_final_result : ELECTION_RESULT
+end --GUI_INTERFACE
+
+deferred class WS_INTERFACE interfaced
+indexing
+	author: "Ólavur Kjølbro";
+feature
+	deferred get_polling_station : POLLING_STATION
+		-> ps_id : INTEGER
+	deferred get_open_status : INTEGER
+		-> ps : POLLING_STATION
+	deferred get_ballot : BALLOT
+		-> ps : POLLING_STATION
+	deferred are_all_closed : BOOLEAN
+	deferred open_polling_station
+		-> ps : POLLING_STATION
+	deferred close_polling_station
+		-> ps : POLLING_STATION
+	deferred register_preliminary_results
+		-> ballot : BALLOT
+	deferred register_final_results
+		-> ballot : BALLOT
+end --WS_INTERFACE
+
+effective class ELECTION
+indexing
+	author: "Ólavur Kjølbro";
+inherit GUI_INTERFACE; WS_INTERFACE
+feature {NONE}
+	status : INTEGER  --status of outer state machine
+	preliminary_result : ELECTION_RESULT
+	final_result : ELECTION_RESULT
+	db : DATABASE_GATEWAY
+feature
+	get_db_gw : DATABASE_GATEWAY
+	get_status : INTEGER
+
+	--GUI_INTERFACE
+	effective initialize
+		require
+			status = ELECTION_STATUS.before_election;
+		ensure
+			status = ELECTION_STATUS.initialized;
+			delta status;
+		end
+	effective open_election
+		require
+			status = ELECTION_STATUS.initialized;
+		ensure
+			status = ELECTION_STATUS.election_open;
+			delta status;
+		end
+	effective try_close_election
+		require
+			status = ELECTION_STATUS.election_open;
+		ensure
+			all_are_closed -> (status = ELECTION_STATUS.election_closed);
+			delta status;
+		end
+	effective check_preliminary_counting
+		require
+			status = ELECTION_STATUS.election_closed;
+		ensure
+			db.check_counting(ELECTION_CONSTANTS.preliminary) -> (status = ELECTION_STATUS.preliminary_counting_completed);
+			delta status;
+		end
+	redefined compute_step_one_preliminary 
+		require
+			status = ELECTION_STATUS.preliminary_counting_completed;
+			preliminary_result.get_inner_status = ELECTION_STATUS.before_computing;
+		ensure
+			preliminary_result.get_inner_status = ELECTION_STATUS.step_1_done or preliminary_result.get_inner_status = ELECTION_STATUS.step_1_resolved;
+			delta preliminary_result;
+		end
+	redefined resolve_step_one_preliminary
+		-> cr : CONSTITUENCY_RESULT
+		-> pres : PARTY_RESULT
+		require
+			preliminary_result.get_inner_status = ELECTION_STATUS.step_1_done;
+			cr /= Void;
+			pres /= Void;
+		ensure
+			preliminary_result.get_inner_status = ELECTION_STATUS.step_1_done or preliminary_result.get_inner_status = ELECTION_STATUS.step_1_resolved;
+			delta preliminary_result;
+		end
+	redefined compute_step_two_preliminary
+		require 
+			preliminary_result.get_inner_status = ELECTION_STATUS.step_1_resolved;
+		ensure
+			preliminary_result.get_inner_status = ELECTION_STATUS.threshold_determined or preliminary_result.get_inner_status = ELECTION_STATUS.no_passing_parties;
+			delta preliminary_result;
+		end
+	redefined compute_step_three_preliminary 
+		require 
+			preliminary_result.get_inner_status = ELECTION_STATUS.threshold_determined;
+		ensure
+			preliminary_result.get_inner_status = ELECTION_STATUS.step_3_done or preliminary_result.get_inner_status = ELECTION_STATUS.step_3_resolved;
+			delta preliminary_result;
+		end
+	redefined resolve_step_three_preliminary
+		-> pres : PARTY_RESULT
+		require 
+			preliminary_result.get_inner_status = ELECTION_STATUS.step_3_done;
+			pres /= Void;
+		ensure
+			preliminary_result.get_inner_status = ELECTION_STATUS.step_3_done or preliminary_result.get_inner_status = ELECTION_STATUS.step_3_resolved;
+			delta preliminary_result;
+		end
+	redefined compute_step_four_preliminary 
+		require 
+			preliminary_result.get_inner_status = ELECTION_STATUS.step_3_resolved;
+		ensure
+			preliminary_result.get_inner_status = ELECTION_STATUS.step_4_done or preliminary_result.get_inner_status = ELECTION_STATUS.step_4_resolved;
+			delta preliminary_result;
+		end
+	redefined get_step_four_draw_preliminary : STEP_FOUR_DRAW 
+		require 
+			preliminary_result.get_inner_status = ELECTION_STATUS.step_4_done;
+		ensure
+			Result /= Void;
+		end
+	redefined resolve_step_four_preliminary
+		-> ranking : INTEGER
+		-> pr : PROVINCE_RESULT
+		-> pres : PARTY_RESULT	
+		require 
+			preliminary_result.get_inner_status = ELECTION_STATUS.step_4_done;
+			ranking > 0;
+			pr /= Void;
+			pres /= Void;
+		ensure
+			preliminary_result.get_inner_status = ELECTION_STATUS.step_4_done or preliminary_result.get_inner_status = ELECTION_STATUS.step_4_resolved;
+			delta preliminary_result;
+		end
+	redefined compute_step_five_preliminary 
+		require 
+			preliminary_result.get_inner_status = ELECTION_STATUS.step_4_resolved;
+		ensure
+			preliminary_result.get_inner_status = ELECTION_STATUS.step_5_done or preliminary_result.get_inner_status = ELECTION_STATUS.step_5_resolved;
+			(preliminary_result.get_inner_status = ELECTION_STATUS.step_5_resolved) -> status = ELECTION_STATUS.preliminary_result_computed;
+			delta {preliminary_result, status};
+		end
+	redefined resolve_step_five_preliminary
+		-> ranking : INTEGER
+		-> cr : CONSTITUENCY_RESULT
+		-> pres : PARTY_RESULT
+		require 
+			preliminary_result.get_inner_status = ELECTION_STATUS.step_5_done;
+			ranking > 0;
+			cr /= Void;
+			pres /= Void;
+		ensure
+			preliminary_result.get_inner_status = ELECTION_STATUS.step_5_done or preliminary_result.get_inner_status = ELECTION_STATUS.step_5_resolved;
+			(preliminary_result.get_inner_status = ELECTION_STATUS.step_5_resolved) -> status = ELECTION_STATUS.preliminary_result_computed;
+			delta {preliminary_result, status};
+		end
+	effective check_final_counting
+		require
+			status = ELECTION_STATUS.preliminary_results_computed;
+		ensure
+			db.check_counting(ELECTION_CONSTANTS.final) -> (status = ELECTION_STATUS.final_counting_completed);
+			delta status;
+		end
+	redefined compute_step_one_final 
+		require
+			status = ELECTION_STATUS.final_counting_completed;
+			final_result.get_inner_status = ELECTION_STATUS.before_computing;
+		ensure
+			final_result.get_inner_status = ELECTION_STATUS.step_1_done or final_result.get_inner_status = ELECTION_STATUS.step_1_resolved;
+			delta final_result;
+		end
+	redefined resolve_step_one_final
+		-> cr : CONSTITUENCY_RESULT
+		-> pres : PARTY_RESULT
+		require
+			final_result.get_inner_status = ELECTION_STATUS.step_1_done;
+			cr /= Void;
+			pres /= Void;
+		ensure
+			final_result.get_inner_status = ELECTION_STATUS.step_1_done or final_result.get_inner_status = ELECTION_STATUS.step_1_resolved;
+			delta final_result;
+		end
+	redefined compute_step_two_final
+		require
+			final_result.get_inner_status = ELECTION_STATUS.step_1_resolved;
+		ensure
+			final_result.get_inner_status = ELECTION_STATUS.threshold_determined or final_result.get_inner_status = ELECTION_STATUS.no_passing_parties;
+			delta final_result;
+		end
+	redefined compute_step_three_final 
+		require 
+			final_result.get_inner_status = ELECTION_STATUS.threshold_determined;
+		ensure
+			final_result.get_inner_status = ELECTION_STATUS.step_3_done or final_result.get_inner_status = ELECTION_STATUS.step_3_resolved;
+			delta final_result;
+		end
+	redefined resolve_step_three_final
+		-> pres : PARTY_RESULT
+		require
+			final_result.get_inner_status = ELECTION_STATUS.step_3_done;
+			pres /= Void;
+		ensure
+			final_result.get_inner_status = ELECTION_STATUS.step_3_done or final_result.get_inner_status = ELECTION_STATUS.step_3_resolved;
+			delta final_result;
+		end
+	redefined compute_step_four_final 
+		require 
+			final_result.get_inner_status = ELECTION_STATUS.step_3_resolved;
+		ensure
+			final_result.get_inner_status = ELECTION_STATUS.step_4_done or final_result.get_inner_status = ELECTION_STATUS.step_4_resolved;
+			delta final_result;
+		end
+	get_step_four_draw_final : STEP_FOUR_DRAW 
+		require 
+			final_result.get_inner_status = ELECTION_STATUS.step_4_done;
+		ensure
+			Result /= Void;
+		end
+	redefined resolve_step_four_final
+		-> ranking : INTEGER
+		-> pr : PROVINCE_RESULT
+		-> pres : PARTY_RESULT	
+		require 
+			final_result.get_inner_status = ELECTION_STATUS.step_4_done;
+			pr /= Void;
+			pres /= Void;
+		ensure
+			final_result.get_inner_status = ELECTION_STATUS.step_4_done or final_result.get_inner_status = ELECTION_STATUS.step_4_resolved;
+			delta final_result;
+		end
+	redefined compute_step_five_final 
+		require
+			final_result.get_inner_status = ELECTION_STATUS.step_4_resolved;
+		ensure
+			final_result.get_inner_status = ELECTION_STATUS.step_5_done or final_result.get_inner_status = ELECTION_STATUS.step_5_resolved;
+			delta final_result;
+		end
+	redefined resolve_step_five_final
+		-> ranking : INTEGER
+		-> cr : CONSTITUENCY_RESULT
+		-> pres : PARTY_RESULT
+		require
+			final_result.get_inner_status = ELECTION_STATUS.step_5_done;
+			ranking > 0;
+			cr /= Void;
+			pres /= Void;
+		ensure
+			final_result.get_inner_status = ELECTION_STATUS.step_5_done or final_result.get_inner_status = ELECTION_STATUS.step_5_resolved;
+			delta final_result;
+		end
+	redefined compute_step_six_final 
+		require 
+			final_result.get_inner_status = ELECTION_STATUS.step_5_resolved;
+		ensure
+			final_result.get_inner_status = ELECTION_STATUS.step_6_done or final_result.get_inner_status = ELECTION_STATUS.step_6_resolved;
+			(final_result.get_inner_status = ELECTION_STATUS.step_6_resolved) -> status = ELECTION_STATUS.final_result_computed;
+			delta {final_result, status};
+		end
+	redefined resolve_step_six_final
+		-> cr : CONSTITUENCY_RESULT
+		-> pres : PARTY_RESULT
+		-> cres : CANDIDATE_RESULT
+		require 
+			final_result.get_inner_status = ELECTION_STATUS.step_6_done;
+			pres /= Void;
+			cres /= Void;
+		ensure
+			final_result.get_inner_status = ELECTION_STATUS.step_6_done or final_result.get_inner_status = ELECTION_STATUS.step_6_resolved;
+			(final_result.get_inner_status = ELECTION_STATUS.step_6_resolved) -> status = ELECTION_STATUS.final_result_computed;
+			delta {final_result, status};
+		end
+	redefined get_preliminary_result : ELECTION_RESULT 
+	redefined get_final_result : ELECTION_RESULT 
+
+	--WS_INTERFACE
+	redefined get_polling_station : POLLING_STATION
+		-> ps_id : INTEGER
+	redefined get_open_status : INTEGER
+		-> ps : POLLING_STATION
+		require
+			ps /= Void;
+		ensure
+			Result = ELECTION_STATUS.ps_not_open or Result = ELECTION_STATUS.ps_open or Result = ELECTION_STATUS.ps_closed;
+		end
+	redefined get_ballot : BALLOT
+		-> ps : POLLING_STATION
+		require
+			status = ELECTION_STATUS.election_open;
+			ps /= Void;
+		end
+	redefined are_all_closed : BOOLEAN
+	redefined open_polling_station
+		-> ps : POLLING_STATION
+		require
+			status = ELECTION_STATUS.election_open;
+			ps /= Void;
+		ensure
+			db.get_polling_station(ps.get_ps_id).get_open_status = ELECTION_STATUS.ps_open;
+		end
+	redefined close_polling_station
+		-> ps : POLLING_STATION
+		require
+			status = ELECTION_STATUS.election_open;
+			ps /= Void;
+		ensure
+			db.get_polling_station(ps.get_ps_id).get_open_status = ELECTION_STATUS.ps_closed;
+		end
+	redefined register_preliminary_result
+		-> ballot : BALLOT
+		require
+			status = ELECTION_STATUS.election_closed;
+			ballot /= Void;
+		end
+	redefined register_final_result
+		-> ballot : BALLOT
+		require
+			status = ELECTION_STATUS.final_counting_completed;
+			ballot /= Void;
+		end
+invariant
+	db /= Void;
+	status = ELECTION_STATUS.before_election or status = ELECTION_STATUS.initialized or status = ELECTION_STATUS.election_open or status = ELECTION_STATUS.election_closed or status = ELECTION_STATUS.preliminary_counting_completed or status = ELECTION_STATUS.preliminary_result_computed or status = ElectionStatus.final_counting_completed or status = ElectionStatus.final_result_computed;
+end --ELECTION
+
+class ELECTION_RESULT
+indexing
+	author: "Ólavur Kjølbro";
+	created: "2010-12-9";
+	edited: "2011-1-18"
+feature {NONE}
+	inner_status : INTEGER
+	constituency_results : LIST[CONSTITUENCY_RESULT]
+	national_results : LIST[PARTY_RESULT]
+	province_results : LIST[PROVINCE_RESULT]
+	total_valid_votes : INTEGER
+	total_passing_votes : INTEGER
+	total_invalid_votes : INTEGER
+	additional_seats_taken : INTEGER
+	seats_total : INTEGER
+	quota : NUMERIC
+	is_step_1_resolved : BOOLEAN
+		ensure
+			(for_all cr member_of constituency_results it_holds(cr.get_seats_taken = cr.get_constituency.get_constituency_seats)) -> Result = true;
+			(exists cr member_of constituency_results it_holds(cr.get_seats_taken > cr.get_constituency.get_constituency_seats)) -> Result = false;
+		end
+	is_step_3_resolved : BOOLEAN
+		ensure
+			(seats_total = ELECTION_CONSTANTS.seats_denmark) -> Result = true;
+			(seats_total /= ELECTION_CONSTANTS.seats_denmark) -> Result = false;
+		end
+	is_step_4_resolved : BOOLEAN
+		ensure
+			((for_all pr member_of province_results it_holds(pr.get_additional_seats_taken = pr.get_province.get_additional_seats)) and (for_all presn member_of national_results it_holds(presn.get_additional_seats_taken = presn.get_additional_seats))) -> Result = true;
+			((exists pr member_of province_results it_holds(pr.get_additional_seats_taken /= pr.get_province.get_additional_seats)) or (exists presn member_of national_results it_holds(presn.get_additional_seats_taken /= presn.get_additional_seats))) -> Result = true;
+		end
+	is_step_5_resolved : BOOLEAN
+		ensure
+			(for_all pr member_of province_results it_holds(pr.get_additional_seats_taken = pr.get_province.get_additional_seats)) -> Result = true;
+			(exists pr member_of province_results it_holds(pr.get_additional_seats_taken > pr.get_province.get_additional_seats)) -> Result = true;
+		end
+	is_step_6_resolved : BOOLEAN
+		ensure
+			(for_all cr member_of constituency_results it_holds(cr.get_no_of_elected = pr.get_total_seats)) -> Result = true;
+			(exists cr member_of constituency_results it_holds(cr.get_no_of_elected > pr.get_total_seats)) -> Result = false;
+		end
+	countConstituencySeatsOnNationalLevel : INTEGER
+feature
+	get_inner_status : INTEGER
+	get_constituency_results : LIST[CONSTITUENCY_RESULT]
+	get_national_results : LIST[PARTY_RESULT]
+	get_province_results : LIST[PROVINCE_RESULT]
+	get_seats_total : INTEGER
+	get_total_passing_votes : INTEGER
+	get_quota : NUMERIC
+	get_total_valid_votes : INTEGER
+	get_total_invalid_votes : INTEGER
+	set_constituency_result
+		-> const_res : LIST[CONSTITUENCY_RESULT]
+		require
+			const_res /= Void;
+		ensure
+			constituency_results = const_res;
+			delta constituency_results;
+		end		
+	set_national_result
+		-> national_res : LIST[PARTY_RESULT]
+		require
+			national_res /= Void;
+		ensure
+			national_results = national_res;
+			delta national_results;
+		end		
+	set_province_result
+		-> province_res : LIST[PROVINCE_RESULT]
+		require
+			province_res /= Void;
+		ensure
+			province_results = province_res;
+			delta province_results;
+		end		
+	set_total_valid_votes
+		-> votes : INTEGER
+		require
+			votes > 0;
+		ensure
+			total_valid_votes = votes;
+			delta total_valid_votes;
+		end		
+	set_total_invalid_votes
+		-> inv_votes : INTEGER
+		require
+			inv_votes > 0;
+		ensure
+			total_invalid_votes = inv_votes;
+			delta total_invalid_votes;
+		end		
+	allocate_constituency_seats
+        require
+        	inner_status = ELECTION_STATUS.before_computing;
+			constituency_results.count = ELECTION_CONSTANTS.no_of_constituencies;
+			for_all c member_of constituency_results it_holds (c.get_seats_taken = 0); 
+			for_all c member_of constituency_results it_holds (for_all p member_of c.get_party_result it_holds (p.get_constituency_seats = 0 and p.get_additional_seats = 0 and p.get_additional_seats_taken = 0)); 
+			for_all c member_of constituency_results it_holds (for_all ca member_of c.get_independent_candidates it_holds (ca.is_elected = false)); 
+			for_all c member_of constituency_results it_holds (for_all p member_of c.get_party_result it_holds (exists n member_of national_results it_holds (p.get_party.get_party_id = n.get_party_get_party_id))); 
+			for_all c member_of constituency_results it_holds ((exists p member_of c.get_party_result it_holds (p.get_total_votes > 0)) or c.get_electable_candidates >= c.get_constituency.get_constituency_seats); 
+        ensure
+			inner_status = ELECTION_STATUS.step_1_done or inner_status = ELECTION_STATUS.step_1_resolved;
+			for_all c member_of constituency_results it_holds (c.get_seats_taken >= c.get_constituency.get_constituency_seats);
+			exists c member_of constituency_results it_holds (exists p1 member_of c.get_party_result it_holds (p1.is_draw = true -> ((exists p2 member_of c.get_party_result it_holds(p2.is_draw = true and p1.get_party.get_party_id /= p2.get_party.get_party_id)) or (exists ca member_of c.get_independent_candidates it_holds (ca.is_draw = true)))));
+			exists c member_of constituency_results it_holds (exists ca member_of c.get_independent_candidates it_holds (ca.is_draw = true -> (exists p member_of c.get_party_result it_holds(p.is_draw = true and ca.get_candidate.get_candidate_id /= ca2.get_candidate.get_candidate_id) or (exists ca2 member_of c.get_independent_candidates it_holds (ca2.is_draw = true)))));
+			not isStep1Resolved -> inner_status = ELECTION_STATUS.step_1_done;
+			isStep1Resolved -> inner_status = ELECTION_STATUS.step_1_resolved;
+          	not isStep1Resolved -> (exists c member_of constituency_results it_holds (c.get_seats_taken > c.get_constituency.get_constituency_seats));
+			delta {inner_status, constituency_results};
+        end
+    get_step_one_draw : LIST[STEP_ONE_DRAW]
+	resolve_constituency_seats
+		-> p_cr : CONSTITUENCY_RESULT
+		-> p_pres : PARTY_RESULT
+		-> p_cres : CANDIDATE_RESULT
+		require
+			inner_status = ELECTION_STATUS.step_1_done;
+			p_cr /= Void;
+			p_pres /= Void xor p_cres /= Void;
+			param_cr.get_seats_taken > param_cr.get_constituency.get_constituency_seats;
+			p_pres /= Void -> p_pres.is_draw = true and p.pres.get_constituency_seats > 0 and (exists c member_of constituency_results it_holds (exists p member_of c.get_party_result it_holds(p.get_party.get_party_id = p_pres.get_party.get_party_id)));
+			p_cres /= Void -> p_cres.is_draw = true and p.cres.is_elected = true and (exists c member_of constituency_results it_holds (exists ca member_of c.get_independent_candidates it_holds(ca.get_candidate.get_candidate_id = p_cres.get_candidate.get_candidate_id)));
+			exists c member_of constituency_results it_holds (c.get_constituency.get_constituency_id = p_cr.get_constituency.get_constituency_id);
+			param_vp.get_constituency_seats > 0;
+		ensure
+			is_step1_resolved -> inner_status = ELECTION_STATUS.step_1_resolved;
+			not isStep1Resolved -> inner_status = ELECTION_STATUS.step_1_done;
+			p_cr.get_seats_taken = (old p_cr.get_seats_taken) - 1;
+			p_pres /= Void -> p_pres.is_draw = false and p_pres.get_constituency_seats = (old p_pres.get_constituency_seats) - 1;
+			p_cres /= Void -> p_cres.is_draw = false and p.cres.is_elected = false;
+			delta {inner_status, constituency_results};
+		end
+	determine_threshold
+		require
+			inner_status = ELECTION_STATUS.step_1_resolved;
+			province_result.count = ELECTION_CONSTANTS.no_of_provinces;
+			total_valid_votes > 0;
+			total_invalid_votes >= 0;
+			national_result.count > 0;
+			for_all p member_of province_results it_holds (for_all pa member_of p.get_party_result it_holds(exists n member_of national_results it_holds(n.get_party.get_party_id = pa.get_party.get_party_id)));
+			for_all c member_of constituency_results it_holds (c.get_seats_taken = c.get_constituency.get_constituency_seats);
+			count_constituency_seats = ELECTION_CONSTANTS.constituency_seats;
+			for_all n member_of national_results it_holds(n.is_threshold_passed = false);
+			countConstituencySeatsOnNationalLevel + countIndependentCandidatesElected = ELECTION_CONSTANTS.constituency_seats;
+		ensure
+			inner_status = ELECTION_STATUS.threshold_determined or inner_status = ELECTION_STATUS.no_passing_parties;
+			for_all n member_of national_results it_holds(n.get_constituency_seats > 0 -> n.is_threshold_passed = true);
+			for_all n member_of national_results it_holds((exists p1 member_of province_results it_holds(exists p2 member_of province_results it_holds(p1.get_province.get_province_id /= p2.get_province.get_province_id and (exists pa1 member_of p1.get_party_result it_holds (exists pa2 member_of p2.get_party_result it_holds(pa1.get_party.get_party_id = n.get_party.get_party_id and pa1.get_party.get_party_id = pa2.get_party.get_party_id and pa1.get_total_votes >= (p1.get_valid_votes / p1.get_province.get_constituency_seats) and pa2.get_total_votes >= (p2.get_valid_votes / p2.get_province.get_constituency_seats))))))) -> n.is_threshold_passed = true);
+			for_all n member_of national_results it_holds(n.get_total_votes / total_valid_votes >= 0.02 -> n.is_threshold_passed = true);
+			exists n member_of national_results it_holds(n.is_threshold_passed = true) -> inner_status = ELECTION_STATUS.threshold_determined;
+			for_all n member_of national_results it_holds(n.is_threshold_passed = false) -> inner_status = ELECTION_STATUS.no_passing_parties;
+			exists n member_of national_results it_holds(n.is_threshold_passed = true) -> quota = total_passing_votes / (ElectionConstants.SEATS_DENMARK - countIndependentCandidatesElected);
+			delta {inner_status, national_result};
+		end
+	allocate_additional_seats_to_parties
+		require
+			inner_status = ELECTION_STATUS.threshold_determined;
+			quota > 0;
+			exists n member_of national_results it_holds(n.is_threshold_passed = true);
+			for_all p member_of national_result it_holds (p.get_additional_seats = 0);
+		ensure
+			seats_total >= ELECTION_CONSTANTS.seats_denmark;
+			seats_total <= ELECTION_CONSTANTS.seats_denmark + countPassingParties - 1;
+			seats_total > ELECTION_CONSTANTS.seats_denmark -> inner_status = ELECTION_STATUS.step_3_done; 
+			seats_total = ELECTION_CONSTANTS.seats_denmark -> inner_status = ELECTION_STATUS.step_3_resolved; 
+			inner_status = ELECTION_STATUS.step_3_done or inner_status = ELECTION_STATUS.step_3_resolved;
+			delta {inner_status, seats_total, national_results};
+		end
+    get_step_three_draw :STEP_THREE_DRAW
+	resolve_additional_seats
+		-> param_pr : PARTY_RESULT
+		require
+			inner_status = ELECTION_STATUS.step_3_done;
+			p_pres /= Void;
+			p_pres.is_draw = true;
+			p_pres.get_additional_seats > 0;
+			seats_total > ELECTION_CONSTANTS.seats_denmark;
+			exists n member_of national_results it_holds(n.get_party.get_party_id = p_pres.get_party.get_party_id);
+		ensure
+			p_pres.get_additional_seats = (old p_pres.get_additional_seats) - 1;
+			p_pres.is_draw = false;
+			seats_total = (old seats_total) - 1;
+			(seats_total = ELECTION_CONSTANTS.seats_denmark) -> inner_status = ELECTION_STATUS.step_3_resolved;
+			delta {inner_status, national_results, seats_total};
+		end
+	allocate_additional_seats_to_provinces
+		require
+			inner_status = ELECTION_STATUS.step_3_resolved;
+			seats_total = ELECTION_CONSTANTS.seats_denmark;
+			additional_seats_taken = 0;
+			for_all p member_of province_result it_holds (p.get_additional_seats_taken = 0);
+			for_all p member_of province_result it_holds (for_all pa member_of p.get_party_result it_holds (pa.get_additional_seats_taken = 0));
+			for_all p member_of province_result it_holds (for_all pa member_of p.get_party_result it_holds (pa.get_divs.count = pa.get_constituency_seats + 1));
+			province_result.count = ELECTION_CONSTANTS.no_of_provinces;
+		ensure
+			additional_seats_taken <= ELECTION_CONSTANTS.additional_seats;
+			isStep4Resolved() -> (for_all p member_of province_result it_holds (p.get_additional_seats_taken = p.get_province.get_additional_seats) and (for_all pa member_of p.get_party_result it_holds (pa.get_additional_seats_taken = pa.get_additional_seats)));
+			not isStep4Resolved() -> (exists p member_of province_result it_holds (p.get_additional_seats_taken > p.get_province.get_additional_seats) or (exists pa member_of p.get_party_result it_holds (pa.get_additional_seats_taken > pa.get_additional_seats)));
+			not is_step4_resolved -> inner_status = ELECTION_STATUS.step_4_done;
+			is_step4_resolved -> inner_status = ELECTION_STATUS.step_4_resolved;
+			inner_status = ELECTION_STATUS.step_4_done or inner_status = ELECTION_STATUS.step_4_resolved;
+			delta {inner_status, province_results, additional_seats_taken};
+		end
+	get_step_four_draw : STEP_FOUR_DRAW
+		require
+			tooManyAdditionalSeatsTaken = true;
+		ensure
+			Result.get_party_results.count > 1 and Result.get_province_results.count > 1 and Result.get_party_results.count = Result.get_province_results.count; 
+		end
+	resolve_step_4_draw
+		-> ranking : INTEGER
+		-> p_pr : PROVINCE_RESULT
+		-> p_presn : PARTY_RESULT
+		require
+			tooManyAdditionalSeatsTaken = true;
+			inner_status = ELECTION_STATUS.step_4_done;
+			ranking > 0 and ranking < ELECTION_CONSTANTS.additional_seats;
+			p_pr /= Void and p_presn /= Void;
+			exists n member_of national_results it_holds(n.get_party.get_party_id = p_presn.get_party.get_party_id);
+		ensure
+			exists pr member_of province_results it_holds(exists pres member_of pr.get_party_result it_holds(for_all d member_of pres.get_divs it_holds(pr.get_province.get_province_id = p_pr.get_province.get_province_id or pres.get_party.get_party_id = p_pres.get_party.get_party_id -> d.get_ranking /= ranking)));
+			additional_seats_taken < (old additional_seats_taken);
+			is_step4_pruned -> inner_status = ELECTION_STATUS.step_4_resolved;
+			delta {inner_status, province_result};
+		end
+	allocate_additional_seats_to_constituencies
+		require
+			inner_status = ELECTION_STATUS.step_4_resolved;
+			for_all cr member_of constituency_results it_holds (for_all presc member_of cr.get_party_result it_holds (is_threshold_passed(presc.get_party) -> presc.get_additional_seats_taken = 0 and presc.get_additional_seats = 0 and presc.get_divs.count = presc.get_constituency_seats + 1 and presc.get_method = ELECTION_CONSTANTS.danish_method));
+			for_all pr member_of province_results it_holds (for_all pres member_of pr.get_party_result it_holds (pres.get_additional_seats_taken = 0));
+		ensure
+			inner_status = ELECTION_STATUS.step_5_done or inner_status = ELECTION_STATUS.step_5_resolved;
+			for_all pr member_of province_results it_holds (for_all presp member_of pr.get_party_result it_holds (presp.get_additional_seats_taken >= presp.get_additional_seats));
+			not is_step5_resolved -> inner_status = ELECTION_STATUS.is_step_5_done;
+			is_step5_resolved -> inner_status = ELECTION_STATUS.is_step_5_resolved;
+			not is_step5_resolved -> (exists pr member_of province_results it_holds (exists presp member_of pr.get_party_result it_holds(presp.get_additional_seats_taken > presp.get_additional_seats)));
+			is_step5_resolved -> (for_all pr member_of province_results it_holds (for_all presp member_of pr.get_party_result it_holds (presp.get_additional_seats_taken = presp.get_additional_seats)));
+			delta {inner_status, constituency_results};
+	end
+    get_step_five_draw : LIST[STEP_FIVE_DRAW]
+	resolve_constituency_result
+		-> ranking : INTEGER
+		-> p_cr : CONSTITUENCY_RESULT
+		-> p_pres : PARTY_RESULT
+		require
+			inner_status = ELECTION_STATUS.step_5_done;
+			ranking > 0;
+			p_pres /= Void;
+			p_cr /= Void;
+			exists pr member_of province_results it_holds (exists presp member_of pr.get_party_result it_holds (presp.get_party.get_party_id = p_pres.get_party.get_party_id));
+			exists div member_of pr.get_divs it_holds (div.get_ranking = ranking);
+			exists pr member_of province_results it_holds (pr.get_province.get_province_id = p_pr.get_province.get_province_id);
+			exists pr member_of province_results it_holds (exists presp member_of pr.get_party_result it_holds (presp.get_additional_seats_taken > presp.get_additional_seats));
+		ensure
+			not is_step5_pruned -> inner_status = ELECTION_STATUS.step_5_done;
+			is_step5_pruned -> inner_status = ELECTION_STATUS.step_5_resolved;
+			not is_step5_resolved -> (exists pr member_of province_results it_holds (exists presp member_of pr.get_party_result it_holds(presp.get_additional_seats_taken > presp.get_additional_seats)));
+			is_step5_resolved -> (for_all pr member_of province_results it_holds (for_all presp member_of pr.get_party_result it_holds (presp.get_additional_seats_taken = presp.get_additional_seats)));
+			delta {inner_status, constituency_results};
+		end
+	select_candidates
+		require
+			inner_status = ELECTION_STATUS.step_5_resolved;
+			-- candidates are arranged by descending vote count
+			for_all cr member_of constituency_results it_holds (for_all presc member_of cr.get_party_result it_holds (presc.get_no_of_elected = 0));
+			for_all cr member_of constituency_results it_holds (for_all presc member_of cr.get_party_result it_holds (presc.get_total_seats <= presc.get_candidate_results.count));
+			exists p member_of national_result it_holds (is_threshold_passed = true);
+		ensure
+			not is_step_6_resolved -> ELECTION_STATUS.step_6_done;
+			is_step_6_resolved -> ELECTION_STATUS.step_6_resolved;
+			for_all cr member_of constituency_results it_holds (for_all presc member_of cr.get_party_result it_holds (presc.get_no_of_elected >= presc.get_total_seats));
+			inner_status = ELECTION_STATUS.step_6_done or inner_status = ELECTION_STATUS.step_6_resolved;
+			delta {inner_status, constituency_results};
+		end
+    get_step_six_draw : LIST[STEP_SIX_DRAW]
+	resolve_candidates
+		-> param_cr : CONSTITUENCY_RESULT
+		-> param_pr : PARTY_RESULT
+		-> param_cres : CANDIDATE_RESULT
+		require
+			inner_status = ELECTION_STATUS.step_6_done;
+			p_cr /= Void;
+			p_pres /= Void;
+			p_cres /= Void;
+			p_cres.is_elected;
+			p_pres.get_no_of_elected > p_pres.get_total_seats;
+			exists presc member_of p_cr.get_party_result it_holds (presc.get_party.get_party_id = p_pres.get_party.get_party_id);
+			exists cres member_of p_pres.get_candidate_results it_holds (cres.get_candidate.get_candidate_id = p_cres.get_candidate.get_candidate_id);
+		ensure
+			p_cres.is_elected = false;
+			not is_step6_resolved -> inner_status = ELECTION_STATUS.step_6_done;
+			is_step6_resolved -> inner_status = ELECTION_STATUS.step_6_resolved;
+			delta {inner_status, constituency_results};
+		end
+	count_independent_candidates_elected : INTEGER
+		require
+			Result >= 0;
+			Result <= ELECTION_CONSTANTS.constituency_seats;
+		end
+invariant
+	inner_status = ELECTION_STATUS.before_computing or inner_status = ELECTION_STATUS.step_1_done or inner_status = ELECTION_STATUS.step_1_resolved or inner_status = ELECTION_STATUS.threshold_determined or inner_status = ELECTION_STATUS.step_3_done or inner_status = ELECTION_STATUS.step_3_resolved or inner_status = ELECTION_STATUS.step_4_done or inner_status = ELECTION_STATUS.step_4_resolved or inner_status = ELECTION_STATUS.step_5_done or inner_status = ELECTION_STATUS.step_5_resolved or inner_status = ELECTION_STATUS.step_6_done or inner_status = ELECTION_STATUS.step_6_resolved;
+end
+
+end --component cluster PROCESS
+
+end --component cluster MODEL
+
+end --component static_diagram

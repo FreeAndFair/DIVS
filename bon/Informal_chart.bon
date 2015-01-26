@@ -1,0 +1,550 @@
+system_chart DiVS --DANISH_VOTING_SYSTEM
+indexing
+	author: "Ólavur Kjølbro"
+explanation "Procedures of the election to the Folketing"
+cluster MODEL description "Model cluster on the national level"
+end --DiVS
+
+cluster_chart MODEL
+indexing
+	author: "Ólavur Kjølbro"
+explanation "Main cluster on the national level"
+class ELECTION_CONSTANTS description "Contains information about the composition of the parliament, the electoral map of Denmark, different divisor methods, and different list organizations"
+class ELECTION_STATUS description "Contains all possible states of the election - in both the outer and the inner state machines"
+cluster DATA description "Contains data classes that are used in the election. E.g. constituency, party, ballot etc."
+cluster GATEWAYS description "Contains gateways to e.g. the database"
+cluster PROCESS description "Contains the classes that handle the election and calculate the election results"
+end --MODEL
+
+cluster_chart DATA
+indexing
+	author: "Ólavur Kjølbro"
+explanation "Contains data classes that are used in the election. E.g. constituency, party, ballot etc."
+class PARTY description "Political party that runs at the election"
+class CANDIDATE description "Candidate may belong to a party or be independent"
+class BALLOT description "Each polling station has its own ballot"
+class BALLOT_JOURNAL description "Each ballot has a journal with both parties and candidates"
+cluster MAP description "Containing classes that comprises the complete electoral map of Denmark"
+cluster COMPUTATION description "Contains data classes that are needed in the process of computing the results of the election"
+end --DATA
+
+cluster_chart MAP
+indexing
+	author: "Ólavur Kjølbro"
+explanation "Containing classes that comprises the complete electoral map of Denmark"
+class PROVINCE description "The Danish electoral map is divided into 3 electoral provinces (short notion: province)"
+class CONSTITUENCY description "Each province has three or four multi-member constituencies (short notion: constituency)"
+class DISTRICT description "Each multi-member constituency has many nomination districts (short notion: district)"
+class POLLING_STATION description "Each district has one or more polling stations where people turn up and vote"
+end --MAP
+
+cluster_chart COMPUTATION 
+indexing
+	author: "Ólavur Kjølbro"
+explanation "Contains data classes that are needed in the process of computing the results of the election"
+class DIV description "Class can be considered as holding a quotient value. It is used to assist in the computation of constituency seats and when additional seats are allocated to provinces and constituencies"
+class CONSTITUENCY_RESULT description "Contains the final results of a constituency with regards to number of total party votes and list of candidates and their votes"
+class PROVINCE_RESULT description "Contains the final results of a province with regards to number of total party votes"
+class PARTY_RESULT description "Contains information about the final results of a party on different levels with regards to number of total votes and seats taken"
+class CANDIDATE_RESULT description "Contains votes for a certain candidate plus information on ranking and elected"
+end --COMPUTATION
+
+cluster_chart GATEWAYS
+indexing
+	author: "Ólavur Kjølbro"
+cluster DATABASE description "Contains gateway to database"
+end --GATEWAYS
+
+cluster_chart DATABASE
+indexing
+	author: "Ólavur Kjølbro"
+explanation "Contains gateway to the database on the national level (at the Ministry of Interior)"
+class DATABASE_GATEWAY description "Gateway to the database"
+end --DATABASE
+
+cluster_chart PROCESS
+indexing
+	author: "Ólavur Kjølbro"
+explanation "Contains the classes that handle the election and calculate the election results"
+class GUI_INTERFACE description "Interface that informs the GUI about which methods to use"
+class WS_INTERFACE description "Interface that informs the webserver about which methods to use when polling station submits the results through a webinterface"
+class ELECTION description "Contains methods that change the state of the election on a high level"
+class ELECTION_RESULT description "Contains all methods that compute the preliminary and final results of the election"
+end --PROCESS
+
+class_chart ELECTION_CONSTANTS
+indexing
+	author: "Ólavur Kjølbro";
+	created: "2010-11-22";
+explanation "Contains information about the composition of the parliament, the electoral map of Denmark, different divisor methods, and different list organizations"
+query
+	"How many seats are there in total?",
+	"How many seats are allocated to Denmark?",
+	"How many seats are allocated to Faroe Islands?",
+	"How many seats are allocated to Greenland?",
+	"How many seats are constituency seats?",
+	"How many seats are additional seats?",
+	"How many provinces are there in Denmark?",
+	"How many constituencies are there in Denmark?",
+	"How many districts are there in Denmark?",
+	"How much larger is the next divisor using different divisor methods?",
+	"What are the different list organization that a party can use?",
+constraint
+	"The number of seats in total is 179",
+	"The number of seats allocated to the Faroe Islands is 2",
+	"The number of seats allocated to the Greenland is 2",
+	"The number of seats allocated to the Denmark is 175",
+	"The number of constituency seats is 135",
+	"The number of additional seats is 40",
+	"There are 3 provinces in Denmark",
+	"There are 10 constituencies in Denmark",
+	"There are 92 districts in Denmark",
+	"The d'Hondt method makes the next divisor plus 1",
+	"The Sainte Laguë method makes the next divisor plus 2",
+	"The Danish method makes the next divisor plus 3",
+end --ELECTION_CONSTANTS
+
+class_chart ELECTION_STATUS 
+indexing
+	author: "Ólavur Kjølbro";
+	created: "2010-11-22";
+explanation "Contains all possible status of the inner and outer state machine"
+query
+	"What are the different states that the election can be in the outer state machine (handling the election)?",
+	"What are the different states that the election can be in the inner state machine (during computation of the results)?",
+	"What are the different states that polling station can have during the election?"
+end --ELECTION_STATUS
+
+class_chart PROVINCE
+indexing
+	author: "Ólavur Kjølbro";
+	created: "2010-11-22";
+explanation "The Danish electoral map is divided into 3 provinces"
+query
+	"What is the name of the provinces?",
+	"How many constituency seats does the provinces have in the parliament?",
+	"How many additional seats does the provinces have in the parliament?",
+constraint
+	"Number of constituency seats must be between 0 and the total number of constituency seats",
+	"Number of additional seats must be between 0 and the total number of additional seats",
+end --PROVINCE
+
+	class_chart CONSTITUENCY
+	indexing
+		author: "Ólavur Kjølbro";
+		created: "2010-11-22";
+	explanation "Each province has one or more multi-member constituencies"
+	query
+		"What is the name of the constituency?",
+		"What province does this constituency belong to?",
+		"How many constituency seats does the constituency have in the parliament?",
+	constraint
+		"Constituency must belong to a province",
+		"Number of constituency seats must be between 0 and the number of constituency seats belonging to province",
+		"If the constituency is 'Bornholms Storkreds' then the minimum number of constituency seats is 2"
+	end --CONSTITUENCY
+
+class_chart DISTRICT
+indexing
+	author: "Ólavur Kjølbro";
+	created: "2010-11-22";
+explanation "Each multi-member constituency has one or more nomination districts"
+query
+	"What is the name of the nomination district?",
+	"To what constituency does it belong?",
+constraint
+	"District must belong to a constituency",
+end --DISTRICT
+
+class_chart POLLING_STATION
+indexing
+	author: "Ólavur Kjølbro";
+	created: "2011-1-13";
+explanation "Each district has one or more polling stations, where voters physically can cast their vote"
+query
+	"What's the name of the polling station?",
+	"To what district does it belong?",
+	"What is the 'open state' of the polling station?",
+	"How many voters belong to the polling station?",
+command
+	"Open polling station!",
+	"Close polling station!"
+constraint
+	"Polling station must belong to a district",
+	"Number of voters must be non-negative",
+	"The 'open state' is always between 'Not Open' and 'Closed' (both included)",
+end --POLLING_STATION
+
+class_chart PARTY
+indexing
+	author: "Ólavur Kjølbro";
+	created: "2010-11-22";
+explanation "Political party that runs at the election"
+query
+	"What is the name of the party?",
+	"What is the party letter of this party?",
+	"What principal form of list organization does it use?",
+	"What does the party list look like?",
+constraint
+	"The list organization must be either standing-by-district or standing-in-parallel",
+	"If a party list is used, then list organization must be standing-by-district"
+end --PARTY
+
+class_chart CANDIDATE
+indexing
+	author: "Ólavur Kjølbro";
+	created: "2010-11-22";
+explanation "A candidate belongs to a party or is independent"
+query
+	"What is the name of the candidate?",
+	"What is the personal identification number of the candidate?",
+	"What is the position of the candidate?",
+	"What is the address of the candidate?",
+	"What party does the candidate belong to?",
+	"Is the candidate independent?",
+constraint
+	"Candidate must have a name",
+	"Candidate must belong to a party or be independent"
+end --CANDIDATE
+
+class_chart BALLOT
+indexing
+	author: "Ólavur Kjølbro";
+	created: "2010-11-22";
+explanation "Each polling station has its own ballot"
+query
+	"Which polling station does this ballot belong to?",
+	"What does the ballot journal look like?",
+	"How many invalid votes are there?"
+constraint
+	"Ballot must belong to a polling station",
+	"Ballot must have a non-empty ballot journal",
+	"Ballot must have a non-negative number of invalid votes"
+end --BALLOT
+
+class_chart BALLOT_JOURNAL
+indexing
+	author: "Ólavur Kjølbro";
+	created: "2010-11-22";
+explanation "A ballot has a list of ballot journals. Each contains either a party or a candidate"
+query
+	"What is the party of this ballot journal?",
+	"What is the candidate of this ballot journal?",
+	"How many votes does this ballot journal have?"
+command
+	"Set the number of votes!"
+constraint
+	"Ballot journal has either a party on it exclusive or a candidate",
+	"Number of votes must be non-negative",
+end --BALLOT_JOURNAL
+
+class_chart DIV
+indexing
+	author: "Ólavur Kjølbro";
+	created: "2010-12-09";
+explanation "Class can be considered as keeping a quotient. It is used to assist in the computation of constituency seats and when additional seats are allocated to provinces and constituencies"
+query
+	"What is the quotient?",
+	"What party or candidate does it represent?",
+constraint
+	"Value must be non-negative",
+	"Party must be set xor the candidate must be set",
+end --DIV
+
+class_chart PARTY_RESULT
+indexing
+	author: "Ólavur Kjølbro";
+	created: "2010-12-09";
+explanation "Class represents the party results on the national, province, and constituency level"
+query
+	"What party is it?",
+	"How many votes in total did is get?",
+	"What divisor method is used?", 
+	"What does the div list look like?",
+	"Is the party involved in a draw on the constituency level?",
+	"Did it pass the threshold?",
+	"How many constituency seats did it get?",
+	"How many additional seats did it get?",
+	"How many seats in total did it get?",
+	"What is the list of candidates? (used on the constituency level)",
+	"What is the party's distributional number?",
+	"What does the list of substitutes look like?",
+command
+	"Set the number of votes!",
+	"Set threshold passed status for party!",
+	"Set number of constituency seats!",
+	"Set number of additional seats!",
+	"Add one div to div-list where the value is calculated according to the right divisor method!",
+	"Initialize div-list for step 4 or step 5!"
+constraint
+	"It must belong to a party",
+	"Number of constituency seats must be between 0 and the total number of constituency seats in Denmark",
+	"Total number of seats must be between 0 and the total number of seats in Denmark",
+	"Total number of seats must equal constituency seats plus additional seats",
+	"Total number of votes must be non-negative",
+	"Divisor method must be d'Hondt, Sainte Laguë, or the Danish method",
+	"Number of votes must be non-negative",
+	"Number of constituency seats must be non-negative",
+	"Number of additional seats must be greater than the number of constituency seats times -1",
+end --PARTY_RESULT
+
+class_chart CONSTITUENCY_RESULT
+indexing
+	author: "Ólavur Kjølbro";
+	created: "2010-12-09";
+query
+	"What constituency is it?",
+	"How many registered voters are there in the constituency?",
+	"What does the party results look like?",
+	"What does the list of independent candidates look like?",
+	"How many seats are taken so far?", 
+command
+	"Create initial divisor list!"
+constraint
+	"Constituency must be set",
+end --CONSTITUENCY_RESULT
+
+class_chart PROVINCE_RESULT
+indexing
+	author: "Ólavur Kjølbro";
+	created: "2010-12-09";
+query
+	"What province is it?",
+	"What does the party results look like?",
+constraint
+	"Province must be set",
+end --PROVINCE_RESULT
+
+class_chart CANDIDATE_RESULT
+indexing
+	author: "Ólavur Kjølbro";
+	created: "2010-12-09";
+query
+	"To which candidate does the votes belong to?",
+	"How many personal votes did the candidate get?",
+	"How many party votes did the candidate get?",
+	"How many votes in total did the candidate get?",
+	"Is the candidate elected?",
+	"Is the independent candidate involved in a draw on the constituency level?",
+	"Does the candidate obtain the distributional number?",
+command
+	"Set the number of personal votes!",
+	"Set the number of party votes!",
+	"Set the elected status!",
+constraint
+	"The candidate must be set",
+	"The number of party votes must be non-negative",
+	"The number of personal votes must be non-negative",
+	"Total votes must be the sum of party votes and personal votes"
+end --CANDIDATE_RESULT
+
+class_chart DB_INTERFACE
+indexing
+	author: "Ólavur Kjølbro";
+	created: "2010-12-09";
+explanation "Interface to the local database"
+query
+	"What does the ballot of polling station X look like?",
+	"What is the elections' results on the constituency level with party votes grouped together?",
+	"What is the elections' results on the national level with party votes grouped together?",
+	"What is the elections' results on the provincial level when party votes grouped together?",
+	"What is the elections' results on the constituency level when personal votes are grouped together?",
+	"Is the preliminary results from all polling stations submitted?",
+	"Is the final results from all polling stations submitted?",
+	"How many valid votes were casted in total in the election?",
+command
+	"Register the electoral map of Denmark!",
+	"Register parties, candidates and the relationship between them!",
+	"Register preliminary results from polling station X!",
+	"Register final results from polling station X!",
+end --DB_INTERFACE
+
+class_chart GUI_INTERFACE
+indexing
+	author: "Ólavur Kjølbro";
+query
+	"What was the preliminary results of the election?",
+	"What was the final results of the election?",
+command
+	"Register electoral map of Denmark!",
+	"Register parties and candidates!",
+	"Initialize the election!",
+	"Open the election!",
+	"Try to close the election!",
+	"If preliminary results is received from all districts, then preliminary counting is completed!",
+	"Compute preliminary results in five steps!",
+	"Resolve preliminary results in all steps except for step two!",
+	"If final results is received from all districts, then final counting is completed!",
+	"Compute final results in six steps!",
+	"Resolve final results in all steps except for step two!",
+end --GUI_INTERFACE
+
+class_chart WS_INTERFACE
+indexing
+	author: "Ólavur Kjølbro";
+query
+	"What is polling station no X?",
+	"What is the open status of polling station no X?",
+	"What ballot belongs to polling station no X?",
+	"Are all polling stations closed?"
+command
+	"Open polling station no X!",
+	"Close polling station no X!",
+	"Submit the preliminary results of district no Y!",
+	"Submit the final results of district no Y!",
+end --WS_INTERFACE
+
+class_chart ELECTION
+indexing
+	author: "Ólavur Kjølbro";
+	created: "2010-11-22";
+explanation "Outer state machine in the election. It inherits both GUI_INTERFACE and WS_INTERFACE"
+query
+	"What is the current state of the election?",
+constraint
+	"Status of the election is always between 'Before election' and 'Final results computed' (both included)"
+end --ELECTION
+
+class_chart ELECTION_RESULT
+indexing
+	author: "Ólavur Kjølbro";
+	created: "2010-11-22";
+explanation "Computation of the results"
+query
+	"What is the inner status of the election?",
+	"What does the constituency results look like with regards to parties and independent candidates?",
+	"What does the national results look like with regards to parties?",
+	"What does the province results look like with regards to parties?",
+	"What does the constituency results look like with regards to candidates?",
+	"Which parties passed the threshold and which parties did not?",
+	"How many valid votes are there in total?",
+	"How many invalid votes are there in total?",
+	"How many valid votes are there in total for parties passing the threshold?",
+	"How many seats are taken so far?",
+	"How many additional seats are taken so far?",
+	"Has any party got more constituency seats in total than allocated seats in total?",
+	"How many independent candidates are elected?",
+	"What do the draw issues look like after step 1, 3, 4, 5, and 6",
+command
+	"Inform about constituency results with regards to party votes and votes for independent candidates!",
+	"Inform about party votes on the national level!",
+	"Inform about party votes on the provincial level!",
+	"Inform about constituency results and personal votes!",
+	"Set total votes casted in the election!",
+	"Set total votes casted for passing parties in the election!",
+	"Determine the quota from total passing votes divided by total number of seats in Denmark!", --step 3
+	"Step 1: allocate all constituency seats to the parties and independent candidates within the constituencies!", --step 1
+	"Step 2: compute the electoral threshold for each party running!",
+	"Step 3: allocate additional seats to parties on the national level!",
+	"Step 4: allocate additional seats on the provincial level to parties!",
+	"Step 5: allocate additional seats on the constituency level!",
+	"Step 6: determine which candidates have got a seat in parliament!",
+	"Resolve ties after step 1, 3, 4, 5, and 6!", 
+constraint
+	"Inner status of the election must be between before computing and results computed",
+end --ELECTION_RESULT
+
+scenario_chart DiVS
+indexing
+	author: "Ólavur Kjølbro";
+scenario "Edit electoral map" description "Edit the electoral map in the database" --GUI
+scenario "Edit parties and candidates" description "Edit the parties and candidates in the database" --GUI
+scenario "Initialize the election" description "Change state to 'Initialized'" --GUI
+scenario "Open the election" description "Enable polling stations to open by changing state to 'Election Open'" --GUI
+scenario "Try to close the election" description "If all individual polling stations are closed then election is closed. Otherwise it is still open" --GUI
+scenario "If preliminary results is received from all districts, then preliminary counting is completed!" description "If all districts have registered their preliminary results the election changes state to 'preliminary counting completed'" --GUI
+scenario "Compute step 1 (preliminary or final)" description "Allocate constituency seats to the parties in the constituencies" --GUI
+scenario "Resolve step 1 (preliminary or final)" description "Resolve draws between parties for constituency seats" --GUI
+scenario "Compute step 2 (preliminary or final)" description "Determine the electoral threshold for the parties" --GUI
+scenario "Compute step 3 (preliminary or final)" description "Allocate additional seats to passing parties on the national level" --GUI
+scenario "Resolve step 3 (preliminary or final)" description "Resolve draws between parties for additional seats" --GUI
+scenario "Compute step 4 (preliminary or final)" description "Allocate additional seats to provinces" --GUI
+scenario "Compute step 5 (preliminary or final)" description "Allocate additional seats to constituencies" --GUI
+scenario "Resolve step 5 (preliminary or final)" description "Resolve draws between constituencies for additional seats" --GUI
+scenario "Compute step 6 (final)" description "Select candidates for parliament or substitute list" --GUI
+scenario "Resolve step 6 (final)" description "Resolve draws between candidates in a constituency" --GUI
+scenario "If final results is received from all districts, then final counting is completed!" description "If all districts have registered their final results the election changes state to 'final counting completed'" --GUI
+scenario "Compute the final results" description "The final results of the election is computed according to the six steps of the law" --GUI
+scenario "Open polling station no X" description "Let national level know that polling station has opened" --WS
+scenario "Close polling station no X" description "Let national level know that polling station has closed" --WS
+scenario "Submit the preliminary results of district no Y" description "Notify the national level about the preliminary results of all polling stations in district Y" --WS
+scenario "Submit the final results of district no Y" description "Notify the national level about the final results of all polling stations in district Y" --WS
+end --scenario_chart
+
+event_chart DiVS
+incoming
+indexing
+	author: "Ólavur Kjølbro";
+event "Edit provinces" involves ELECTION, DB_GATEWAY --GUI
+event "Edit constituencies" involves ELECTION, DB_GATEWAY --GUI
+event "Edit districts" involves ELECTION, DB_GATEWAY --GUI
+event "Edit polling stations" involves ELECTION, DB_GATEWAY --GUI
+event "Edit parties" involves ELECTION, DB_GATEWAY --GUI
+event "Edit candidates" involves ELECTION, DB_GATEWAY --GUI
+event "Initialize state to 'initialized'" involves ELECTION --GUI
+event "Change state to 'election open'" involves ELECTION --GUI
+event "Open polling station no X" involves ELECTION, DB_GATEWAY --WS
+event "Close polling station no X" involves ELECTION, DB_GATEWAY --WS
+event "Change state to 'election closed'" involves ELECTION --GUI
+event "Submit preliminary results of polling station no X" involves ELECTION, DB_GATEWAY --WS
+event "Change state to 'preliminary counting completed'" involves ELECTION --GUI
+event "Submit final results of polling station no X" involves ELECTION, DB_GATEWAY --WS
+event "Change state to 'final counting completed'" involves ELECTION --GUI
+event "Change state to 'final results computed'" involves ELECTION, ELECTION_RESULT --GUI
+event "Load constituency results from database" involves ELECTION, DB_GATEWAY, ELECTION_RESULT --GUI
+event "Load national results from database" involves ELECTION, DB_GATEWAY, ELECTION_RESULT --GUI
+event "Load province results from database" involves ELECTION, DB_GATEWAY, ELECTION_RESULT --GUI
+event "Load candidate results from database" involves ELECTION, DB_GATEWAY, ELECTION_RESULT --GUI
+event "Allocate constituency seats" involves ELECTION, ELECTION_RESULT, CONSTITUENCY_RESULT, PARTY_RESULT, PROVINCE_RESULT, DIV  --GUI
+event "Fetch draw issues for constituencies and parties (or independent candidates)" involves ELECTION, ELECTION_RESULT, CONSTITUENCY_RESULT, PARTY_RESULT, CANDIDATE_RESULT  --GUI
+event "Resolve constituency results" involves ELECTION, ELECTION_RESULT, CONSTITUENCY_RESULT, PARTY_RESULT, PROVINCE_RESULT, DIV  --GUI
+event "Update national results" involves ELECTION, ELECTION_RESULT, CONSTITUENCY_RESULT, PARTY_RESULT, PROVINCE_RESULT, DIV  --GUI
+event "Determine threshold" involves ELECTION, ELECTION_RESULT, CONSTITUENCY_RESULT, PARTY_RESULT, PROVINCE_RESULT, DIV  --GUI
+event "Calculate passing votes" involves ELECTION, ELECTION_RESULT, CONSTITUENCY_RESULT, PARTY_RESULT, PROVINCE_RESULT, DIV  --GUI
+event "Determine quota" involves ELECTION, ELECTION_RESULT, CONSTITUENCY_RESULT, PARTY_RESULT, PROVINCE_RESULT, DIV  --GUI
+event "Allocate additional seats to parties" involves ELECTION, ELECTION_RESULT, CONSTITUENCY_RESULT, PARTY_RESULT, PROVINCE_RESULT, DIV  --GUI
+event "Fetch draw issue for parties" involves ELECTION, ELECTION_RESULT, PARTY_RESULT --GUI
+event "Resolve draws between parties for additional seats" involves ELECTION, ELECTION_RESULT, CONSTITUENCY_RESULT, PARTY_RESULT, PROVINCE_RESULT, DIV  --GUI
+event "Update province results" involves ELECTION, ELECTION_RESULT, CONSTITUENCY_RESULT, PARTY_RESULT, PROVINCE_RESULT, DIV  --GUI
+event "Initialize div lists in provinces" involves ELECTION, ELECTION_RESULT, CONSTITUENCY_RESULT, PARTY_RESULT, PROVINCE_RESULT, DIV  --GUI
+event "Allocate additional seats to provinces" involves ELECTION, ELECTION_RESULT, CONSTITUENCY_RESULT, PARTY_RESULT, PROVINCE_RESULT, DIV  --GUI
+event "Fetch draw issue for parties and provinces" involves ELECTION, ELECTION_RESULT, PROVINCE_RESULT, PARTY_RESULT --GUI
+event "Resolve draws between parties and provinces" involves ELECTION, ELECTION_RESULT, PROVINCE_RESULT, PARTY_RESULT, DIV  --GUI
+event "Initialize div lists in constituencies" involves ELECTION, ELECTION_RESULT, CONSTITUENCY_RESULT, PARTY_RESULT, PROVINCE_RESULT, DIV  --GUI
+event "Allocate additional seats to constituencies" involves ELECTION, ELECTION_RESULT, CONSTITUENCY_RESULT, PARTY_RESULT, PROVINCE_RESULT, DIV  --GUI
+event "Fetch draw issues for parties and constituencies" involves ELECTION, ELECTION_RESULT, CONSTITUENCY_RESULT, PARTY_RESULT, PROVINCE_RESULT  --GUI
+event "Resolve draws between constituencies for additional seats" involves ELECTION, ELECTION_RESULT, CONSTITUENCY_RESULT, PARTY_RESULT, PROVINCE_RESULT, DIV  --GUI
+event "Sort candidates descending by vote count" involves ELECTION, ELECTION_RESULT, CONSTITUENCY_RESULT, PARTY_RESULT, PROVINCE_RESULT, DIV  --GUI
+event "Select candidates" involves ELECTION, ELECTION_RESULT, CONSTITUENCY_RESULT, PARTY_RESULT, CANDIDATE_RESULT   --GUI
+event "Fetch draw issues for constituencies, parties, and candidates" involves ELECTION, ELECTION_RESULT, CONSTITUENCY_RESULT, PARTY_RESULT, CANDIDATE_RESULT   --GUI
+event "Resolve draws between candidates" involves ELECTION, ELECTION_RESULT, CONSTITUENCY_RESULT, PARTY_RESULT, CANDIDATE_RESULT  --GUI
+event "Select un-elected candidates for the substitute list" involves ELECTION, ELECTION_RESULT, CONSTITUENCY_RESULT, PARTY_RESULT, CANDIDATE_RESULT   --GUI
+event "Change state to 'preliminary results computed'" involves ELECTION, ELECTION_RESULT --GUI
+event "Check if all polling stations are closed" involves ELECTION, DB_GATEWAY --GUI, WS
+event "Check if the preliminary results of all polling stations have been submitted" involves ELECTION, DB_GATEWAY --GUI
+event "Check if the final results of all polling stations have been submitted" involves ELECTION, DB_GATEWAY --GUI
+event "Return the preliminary results of the election" involves ELECTION, ELECTION_RESULT
+event "Return the final results of the election" involves ELECTION, ELECTION_RESULT
+event "Return the open status of polling station no X" involves ELECTION
+event "Return polling station no X" involves ELECTION, DB_INTERFACE, POLLING_STATION
+event "Return ballot belonging to polling station no X" involves ELECTION, DB_INTERFACE, BALLOT, POLLING_STATION, BALLOT_JOURNAL, PARTY, CANDIDATE 
+end --event_chart (incoming)
+
+event_chart DiVS
+outgoing
+indexing
+	author: "Ólavur Kjølbro";
+event "Database connection goes down" involves ELECTION, DB_GATEWAY --GUI, WS
+event "System is out of memory" involves ELECTION, DB_GATEWAY, ELECTION_RESULT --GUI, WS
+end --event_chart (outgoing)
+
+creation_chart DiVS
+indexing
+	author: "Ólavur Kjølbro";
+	created: "2010-12-03";
+explanation
+	"List of classes creating objects in the system"
+creator ELECTION creates DB_GATEWAY, ELECTION_RESULT
+creator DB_GATEWAY creates PROVINCE, CONSTITUENCY, DISTRICT, POLLING_STATION, PARTY, CANDIDATE, BALLOT, BALLOT_JOURNAL, CONSTITUENCY_RESULT, PROVINCE_RESULT, PARTY_RESULT 
+creator PARTY_RESULT creates DIV
+end --creation_chart
